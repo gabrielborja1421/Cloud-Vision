@@ -1,0 +1,107 @@
+from flask import Flask, request, jsonify
+import os
+import io
+from google.cloud import vision
+from google.cloud.vision_v1 import types
+import requests
+
+# Configurar la variable de entorno con la ruta al archivo de credenciales
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = r'ServiceAccountToken.json'
+
+app = Flask(__name__)
+
+@app.route('/ping', methods=['GET'])
+def ping():
+    return jsonify({'message': 'pong'}), 200
+
+@app.route('/upload', methods=['POST'])
+def upload_image():
+    if 'image' not in request.files or 'user_id' not in request.form:
+        return jsonify({'error': 'No image or user_id provided'}), 400
+
+    image_file = request.files['image']
+    user_id = request.form['user_id']
+    content = image_file.read()
+
+    # Crear el cliente de la API de Vision
+    client = vision.ImageAnnotatorClient()
+    image = vision.Image(content=content)
+
+    # Llamar a la API de Vision para la detección de contenido seguro
+    response = client.safe_search_detection(image=image)
+    safe_search = response.safe_search_annotation
+
+    # Verificar si hay errores en la respuesta
+    if response.error.message:
+        return jsonify({'error': response.error.message}), 500
+
+    # Crear el resultado como un diccionario
+    inappropriate_content = (
+        safe_search.adult >= vision.Likelihood.VERY_LIKELY or
+        safe_search.medical >= vision.Likelihood.VERY_LIKELY or
+        safe_search.violence >= vision.Likelihood.VERY_LIKELY
+    )
+
+    if inappropriate_content:
+        return jsonify({'explicit': True, 'message': 'Image contains inappropriate content'}), 400
+
+    # Si la imagen es apropiada, enviarla a la API existente para subir la imagen
+    try:
+        files = {'image': (image_file.filename, io.BytesIO(content), image_file.content_type)}
+        data = {'user_id': user_id}
+        response = requests.post('http://localhost:8000/image/', files=files, data=data)
+        if response.status_code == 200:
+            original_response = response.json()
+            original_response['explicit'] = "false"
+            return jsonify(original_response)
+        else:
+            return jsonify({'error': 'Error uploading image to existing service'}), response.status_code
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/image/<user_id>', methods=['PUT'])
+def update_image(user_id):
+    if 'image' not in request.files:
+        return jsonify({'error': 'No image provided'}), 400
+
+    image_file = request.files['image']
+    content = image_file.read()
+
+    # Crear el cliente de la API de Vision
+    client = vision.ImageAnnotatorClient()
+    image = vision.Image(content=content)
+
+    # Llamar a la API de Vision para la detección de contenido seguro
+    response = client.safe_search_detection(image=image)
+    safe_search = response.safe_search_annotation
+
+    # Verificar si hay errores en la respuesta
+    if response.error.message:
+        return jsonify({'error': response.error.message}), 500
+
+    # Crear el resultado como un diccionario
+    inappropriate_content = (
+        safe_search.adult >= vision.Likelihood.VERY_LIKELY or
+        safe_search.medical >= vision.Likelihood.VERY_LIKELY or
+        safe_search.violence >= vision.Likelihood.VERY_LIKELY
+    )
+
+    if inappropriate_content:
+        return jsonify({'explicit': True, 'message': 'Image contains inappropriate content'}), 400
+
+    # Si la imagen es apropiada, enviarla a la API existente para actualizar la imagen
+    try:
+        files = {'image': (image_file.filename, io.BytesIO(content), image_file.content_type)}
+        data = {'user_id': user_id}
+        response = requests.put(f'http://localhost:8000/image/{user_id}', files=files, data=data)
+        if response.status_code == 200:
+            original_response = response.json()
+            original_response['explicit'] = "false"
+            return jsonify(original_response)
+        else:
+            return jsonify({'error': 'Error updating image on existing service'}), response.status_code
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
