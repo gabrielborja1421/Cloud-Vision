@@ -1,3 +1,27 @@
 # Ignorar el archivo ServiceAccountToken.json
 ServiceAccountToken.json
 
+# Ignorar el archivo de mi entorno virutal Scripts
+env/
+
+# Ignorar el archivo de mi entorno virutal Lib
+Lib/
+
+# Ignorar el archivo de mi entorno virutal Include
+Include/
+
+# Ignorar el archivo de mi entorno virutal Lib
+Scripts/
+
+# Ignorar el archivo de mi entorno virutal Lib
+pyvenv.cfg
+
+# Ignorar el archivo de mi entorno virutal Lib
+pyvenv
+
+# Ignorar el archivo de mi entorno virutal Lib
+__pycache__/
+
+# Ignorar el archivo de mi entorno virutal Lib
+*.pyc
+
