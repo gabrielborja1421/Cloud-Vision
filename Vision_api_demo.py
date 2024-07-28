@@ -128,7 +128,7 @@ def update_image(user_id):
     # Si la imagen es apropiada, subirla a un servicio de almacenamiento (por ejemplo, Cloudinary)
     try:
         upload_response = requests.post(
-            'http://http://3.218.77.178:8000/image/upload', 
+            'http://3.218.77.178:8000/image/upload', 
             files={'file': content}, 
             data={'upload_preset': 'your-upload-preset'}
         )
